@@ -1,0 +1,53 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
+import { Channel } from './channel.schema';
+import { Questionnaire, QuestionnaireSchema } from './questionnaire.schema';
+import { Participant } from './participant.schema';
+import { Question, QuestionSchema } from './question.schema';
+import { ConversationState, ConversationStatus } from '../../../shared/domain';
+
+@Schema({ timestamps: true })
+export class Conversation {
+  @Prop({ type: Types.ObjectId })
+  _id: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: Participant.name, required: true })
+  participantId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: Channel.name, required: true })
+  channelId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: Questionnaire.name, required: true })
+  questionnaireId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: Channel.name, required: true })
+  currentQuestionId: Types.ObjectId;;
+  
+  @Prop({ type: String,
+    required: true,
+    enum: Object.values(ConversationStatus),
+    default: ConversationStatus.ACTIVE })
+  status: ConversationStatus;
+
+  @Prop({ type: String,
+    required: true, enum: Object.values(ConversationState), default: ConversationState.START })
+  state: ConversationState;
+
+  @Prop({ type: [QuestionSchema], default: [] })
+  questions?: Question[]; // optional snapshot of questionnaire at start
+
+  @Prop({ type: Object, default: {} })
+  metadata?: Record<string, any>; // e.g., session info, AI state
+
+  @Prop({ type: Date })
+  startedAt?: Date;
+  @Prop({ type: Date })
+  endedAt?: Date;
+
+  createdAt?: Date;
+  updatedAt?: Date;
+
+}
+
+export type ConversationDocument = Conversation;
+export const ConversationSchema = SchemaFactory.createForClass(Conversation);
