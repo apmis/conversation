@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Question, QuestionSchema } from './schemas/question.schema';
 import { Option, OptionSchema } from './schemas/option.schema';
@@ -13,7 +13,6 @@ import { QuestionController } from './controllers/question.controller';
 import { OptionListController } from './controllers/option-list.controller';
 import { QuestionnaireController } from './controllers/questionnaire.controller';
 import { TagController } from './controllers/tag.controller';
-import { Channel, ChannelSchema } from './schemas/channel.schema';
 import { Conversation, ConversationSchema } from './schemas/conversation.schema';
 import { Questionnaire, QuestionnaireSchema } from './schemas/questionnaire.schema';
 import { Response, ResponseSchema } from './schemas/response.schema';
@@ -25,21 +24,18 @@ import { ConversationRepository } from './repositories/mongo/conversation.reposi
 import { ParticipantRepository } from './repositories/mongo/participant.repository';
 import { ParticipantService } from './services/participant.service';
 import { ResponseService } from './services/ResponseService';
-import { ChannelService } from '../../channels/services/channel.service';
 import { Participant, ParticipantSchema } from './schemas/participant.schema';
-import { ChannelSenderFactory } from '../../channels/senders/channel-sender-factory';
-import { NigeriaBulkSmsSender } from '../../channels/senders/sms-sender';
-import { WhatsappSender } from '../../channels/senders/whatsapp-sender';
 import { QuestionProcessorService } from './services/question-processor.service';
 import { AIProcessorService } from './services/ai-processor.service';
+import { ChannelsModule } from '../../channels/channels.module';
 
 @Module({
   imports: [
+    forwardRef(() => ChannelsModule),
     MongooseModule.forFeature([
       { name: Question.name, schema: QuestionSchema },
       { name: Option.name, schema: OptionSchema },
       { name: OptionList.name, schema: OptionListSchema },
-      { name: Channel.name, schema: ChannelSchema },
       { name: Conversation.name, schema: ConversationSchema },
       { name: Questionnaire.name, schema: QuestionnaireSchema },
       { name: Response.name, schema: ResponseSchema },
@@ -63,12 +59,8 @@ import { AIProcessorService } from './services/ai-processor.service';
     ResponseService,
     ParticipantService,
     ParticipantRepository,
-    ChannelService,
-    ChannelSenderFactory,
     QuestionProcessorService,
     AIProcessorService,
-    NigeriaBulkSmsSender,
-    WhatsappSender,
     CreateQuestionUseCase,
     UpdateQuestionUseCase,
     QuestionMongoRepository,

@@ -3,3 +3,13 @@ curl -i -X POST \
   -H 'Authorization: Bearer EAAcLJZBSOVH8BQ0geFp3srZAAf2KSLtIFiNPAOPCIRCO1DKVTCkyf7TD12EQ77rDTO6siUFoVjcO5jYfNJDF7yKXdJltMmQmHnbvXoIJX6XH9U68z4t0ppbJZArbAUzFZB9oedLmzVzmpZCyZBele2GWk7yZByZAoXVbcRLWv8xBxYy5n1c1qGMWBJVMRZAAFskh2iZA64ALbSsfVB0AE8XumWy7cxp66QkmbYCFBggZCu6sioLMFeQZBcZCLMSvEkU42I6SxNHBLa5wWB9HO45r8HauvVM9j6UUU5OUpugZDZD' \
   -H 'Content-Type: application/json' \
   -d '{ "messaging_product": "whatsapp", "to": "2348022224166", "type": "template", "template": { "name": "hello_world", "language": { "code": "en_US" } } }'
+
+###Registeration API
+
+curl -X POST "https://graph.facebook.com/v22.0/765993872956281/register" \
+  -H "Authorization: Bearer EAAcLJZBSOVH8BQ5DcWmYuS5GZBbeTndVRZBaBpr8i41ErY2lrHTmiXj2GIZCm61v6Y8NxemesMmaruEt4SdZCppSS9kwNYFlgqcfxUGMVyLHB0ZC7RNXX5e0ZBePdUQTF35lurVFr7ZC4sDQaKUBEcNNJJbvmql64kCP402W0ZA5vNz4GymceoOwbbuYWIS8D0LIrozzQ9PqnHjRLSgwMXGJi6GzwOtg9TAGGJUCn" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messaging_product": "whatsapp",
+    "pin": "196300"
+  }'

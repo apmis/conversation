@@ -11,6 +11,7 @@ import {
 } from '../controllers/dto/questionnaire.dto';
 import { QuestionDomain, QuestionnaireDomain } from '../../../shared/domain';
 import { mapQuestionEntityToDomain } from '../../../shared/converters/question-converter';
+import { toDomain } from 'src/shared/converters';
 
 @Injectable()
 export class QuestionnaireService {
@@ -30,6 +31,11 @@ export class QuestionnaireService {
     return this.model.find().lean();
   }
 
+  async getInitQuestionnaires() : Promise<QuestionnaireDomain[]> {
+    const questionnnnaires = await this.model.find().lean();
+    return questionnnnaires.map(toDomain);
+  }
+
   async findOne(id: string): Promise<QuestionnaireDomain> {
     const result = await this.model.findById(id).lean();
     if (!result) throw new NotFoundException('Questionnaire not found');
@@ -38,9 +44,9 @@ export class QuestionnaireService {
     return domain;
   }
 
-  async findByCode(code: string): Promise<QuestionnaireDomain> {
+  async findByCode(code: string): Promise<QuestionnaireDomain | null> {
     const result = await this.model.findOne({ code }).lean();
-    if (!result) throw new NotFoundException('Questionnaire not found');
+    if (!result) return result;
     const { _id, questions, ...others } = result;
     return {
       ...others,

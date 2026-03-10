@@ -4,6 +4,7 @@ process.env.MONGOMS_DOWNLOAD_DIR = './mongo-binaries';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken, MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule } from '@nestjs/config';
 import { Model, Types } from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { ConversationModule } from './modules/conversation/conversation.module';
@@ -93,6 +94,7 @@ describe('ConversationService Integration', () => {
 
     moduleFixture = await Test.createTestingModule({
       imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
         MongooseModule.forRoot(mongoUri, {
           dbName: 'conversation_service_integration_test',
         }),
@@ -127,13 +129,11 @@ describe('ConversationService Integration', () => {
     sentMessages.length = 0;
   });
 
-  afterEach(() => {
-    sentMessages.length = 0;
-  });
-
   afterAll(async () => {
     //console.log('[TRACE] Closing testing module and MongoMemoryServer...');
-    await moduleFixture.close();
+    if (moduleFixture) {
+      await moduleFixture.close();
+    }
     if (mongoServer) {
       await mongoServer.stop();
     }
@@ -170,7 +170,7 @@ it('runs 10 questionnaires (5 questions each) from simple to complex scenarios',
       expect(conversation?.state).toBe('PROGRESS');
       expect(sentMessages.length).toBe(1);
 
-      const questionIds = questionnaire.questions!.map((q: any) => q._id.toString());
+      const questionIds = questionnaire.questions!.map((q: any) => q.id.toString());
       const answers = buildAnswerScript(questionnaire.questions!, scenario);
 
       let expectedInboundCount = 0;
@@ -254,7 +254,7 @@ it('runs 10 questionnaires (5 questions each) from simple to complex scenarios',
 //       conversationService.processInboundMessage(channel, participant, 'onne more answer',questionnaire.code)
 //     ).rejects.toBeInstanceOf(BadRequestException);
 //   });
-// });
+});
 
 function buildAnswerScript(questions: any[], scenario: TestScenario) {
   const validByQuestion = questions.map((question, idx) => {

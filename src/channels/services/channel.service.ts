@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
-import { Channel, ChannelDocument } from "../../modules/conversation/schemas/channel.schema";
+import { Channel, ChannelDocument } from "../schemas/channel.schema";
 import { ChannelDomain, ChannelType } from "../../shared/domain";
 import { toDomain } from "../../shared/converters";
+import { CreateChannelDto, UpdateChannelDto } from "../controllers/dto/channel.dto";
 
 @Injectable()
 export class ChannelService {
@@ -14,24 +15,76 @@ export class ChannelService {
 
 
   async findByType(type: string): Promise<ChannelDomain | null> {
-    const result =  this.channelModel.findOne({ type }).exec();
+    const result = await this.channelModel.findOne({ type }).lean().exec();
     const domain = toDomain(result);
     return domain;
   }
 
 
-  async  findbyId(channelId:string): Promise<ChannelDomain> {
+  async findById(channelId: string): Promise<ChannelDomain | null> {
+    if (!Types.ObjectId.isValid(channelId)) {
+      return null;
+    }
     const channel = await this.channelModel.findById(new Types.ObjectId(channelId)).lean();
     return toDomain(channel);
   }
 
+
   async validateChannel(channelId: string): Promise<ChannelDomain> {
-    const channel = await this.channelModel.findById(channelId).lean();
+    const channel = await this.findById(channelId);
     if (!channel) {
       throw new NotFoundException('Channel not found');
     }
 
-    return toDomain(channel);
+    return channel;
+  }
+
+  async create(dto: CreateChannelDto): Promise<ChannelDomain> {
+    const created = await this.channelModel.create(dto);
+    return toDomain(created);
+  }
+
+  async findAll(): Promise<ChannelDomain[]> {
+    const channels = await this.channelModel.find().lean();
+    return toDomain(channels);
+  }
+
+  async findOne(id: string): Promise<ChannelDomain> {
+    const channel = await this.findById(id);
+    if (!channel) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    return channel;
+  }
+
+  async update(id: string, dto: UpdateChannelDto): Promise<ChannelDomain> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const updated = await this.channelModel
+      .findByIdAndUpdate(new Types.ObjectId(id), { $set: dto }, { new: true })
+      .lean();
+
+    if (!updated) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    return toDomain(updated);
+  }
+
+  async remove(id: string): Promise<{ message: string }> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const deleted = await this.channelModel.findByIdAndDelete(new Types.ObjectId(id));
+    if (!deleted) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    return { message: 'Channel deleted successfully' };
   }
 
   async sendMessage(channelId: string, payload: any) {

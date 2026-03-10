@@ -54,11 +54,10 @@ export class ConversationRepository {
     return toDomain(conversation)
   }
 
-  async findActiveByParticipantId(participantId: string, questionnaireId: string): Promise<ConversationDomain | null> {
+  async findActiveByParticipantId(participantId: string): Promise<ConversationDomain | null> {
     const conversation = await this.model
       .findOne({
         participantId,
-        questionnaireId,
        status: ConversationStatus.ACTIVE,
       }).lean()
     if (!conversation) return null;

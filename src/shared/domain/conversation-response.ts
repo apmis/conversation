@@ -1,0 +1,12 @@
+import { ProcessAnswerStatus } from "src/modules/conversation/services/question-processor.service";
+import { ChannelDomain, ParticipantDomain } from ".";
+
+export interface ConversationResponse {
+  responded: boolean;
+  reason: ProcessAnswerStatus;
+  action: "REPLIED_NEW_CONVERSATION" | 'BAD_REQUEST_ERROR' | 'REPLIED_CONVERSATION' | 'SENT_INIT_MESSAGE';
+  context: {
+    questionnaireCode: string;
+    [key: string]: any; // allows ...context spread
+  };
+}

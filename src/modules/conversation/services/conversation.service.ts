@@ -20,13 +20,9 @@ import { ParticipantService } from './participant.service';
 import { ProcessAnswerStatus, QuestionProcessorService } from './question-processor.service';
 import { Channel } from '../../../shared/domain/channel.domain';
 import { ChannelSender } from '../../../channels/senders/channel-sender';
+import { ConversationResponse } from 'src/shared/domain/conversation-response';
+import { MessageContext } from '../../../shared/domain/message-context.domain';
 
-type InboundMessageContext = {
-  participantId?: string;
-  questionnaireCode?: string;
-  channelId?: string;
-  channelType?: string;
-};
 
 @Injectable()
 export class ConversationService {
@@ -64,8 +60,8 @@ export class ConversationService {
     return schema;
   }
 
-  async findActiveConversationOfParticipant(participanctId: string, questionnaireId: string): Promise<ConversationDomain | null> {
-    return this.conversationRepository.findActiveByParticipantId(participanctId, questionnaireId);
+  async findActiveConversationOfParticipant(participanctId: string): Promise<ConversationDomain | null> {
+    return this.conversationRepository.findActiveByParticipantId(participanctId);
   }
 
   private async sendQuestion(
@@ -77,22 +73,27 @@ export class ConversationService {
       conversation.participantId,
     );
 
-    let message = question.text;
-    
-    if (question.options?.length) {
-      const options = question.options
-        .map((option) => `${option.key}: ${option.label}`)
-        .join('\n');
+      let message = this.questionProcessor.askQuestion(question);
 
-      message = `${message}\n${options}`;
-    }
-
-    await sender.sendMessage(participant, message);
+    await sender.sendMessage(participant, message, {
+      channelId: conversation.channelId,
+      conversationId: conversation.id,
+      questionnaireCode: conversation.questionnaireId,
+      source: 'conversation_service',
+    });
     await this.responseService.saveOutboundResponse(
       conversation,
       message,
       question.id,
     );
+  }
+
+  private async sendInitMessage(channelId, participant: ParticipantDomain) {
+    const sender = await this.senderFactory.getSender(channelId);
+    const questionnaires = await this.questionnaireService.getInitQuestionnaires();
+    const message = `Please select an action ${(questionnaires).map(q => `${q.code}: ${q.name}`).join('\n')}`
+    const response = await sender.sendMessage(participant, message);
+    return response;
   }
 
   private async sendMessage(
@@ -104,7 +105,11 @@ export class ConversationService {
     const participant = await this.participantService.findOne(
       conversation.participantId,
     );
-    await sender.sendMessage(participant, message);
+    await sender.sendMessage(participant, message, {
+      channelId: conversation.channelId,
+      conversationId: conversation.id,
+      source: 'conversation_service',
+    });
     await this.responseService.saveOutboundResponse(conversation, message, questionId);
   }
 
@@ -121,6 +126,14 @@ export class ConversationService {
   }
   async processInboundMessageFromPhoneNumber(channel: ChannelDomain, phone: string, message, questionnaireCode: string, context?: InboundMessageContext,) {
     const participant = await this.participantService.findByPhone(phone);
+    if(!participant){
+       return {
+        responded: true,
+        reason: ProcessAnswerStatus.PARTICIPANT_NOT_FOUND,
+        action: "REPLIED_NEW_CONVERSATION",
+        context: { questionnaireCode, channel, participant, message, ...context }
+      };
+    }
     return this.processInboundMessage(channel, participant, message, questionnaireCode, context);
   }
 
@@ -129,32 +142,26 @@ export class ConversationService {
     participant: ParticipantDomain,
     message: string,
     questionnaireCode: string,
-    context?: InboundMessageContext,
-  ) {
-    let conversation = await this.conversationRepository.findActiveByParticipantId(
-      participant.id,
-      questionnaireCode
-    );
+    context: MessageContext,
+  ): Promise<ConversationResponse> {
+    let result: Record<string, any> = {};
+    let conversation = await this.conversationRepository.findActiveByParticipantId(participant.id);
+    const questionnaire = conversation ? await this.questionnaireService.findOne(conversation.questionnaireId) : await this.questionnaireService.findByCode(questionnaireCode);
+    //Scenario 1 : Input that can't be processed was provided
+    if (!conversation && !questionnaire) {
+      await this.sendInitMessage(channel, participant);
+      return {
+        responded: false,
+        reason: questionnaireCode ? ProcessAnswerStatus.CONVERSATION_NOT_FOUND : ProcessAnswerStatus.QUESTIONNAIRE_CODE_NOT_PROVIDED,
+        action: "SENT_INIT_MESSAGE",
+        context: { questionnaireCode,  }
+      };
+    }
 
-    if (!conversation) {
-      if (!questionnaireCode) {
-        throw new BadRequestException(
-          'Unable to resolve active conversation and missing bootstrap context',
-        );
-      }
-      const questionnaire = await this.questionnaireService.findByCode(
-        questionnaireCode,
-      );
-      if (!questionnaire) {
-        throw new BadRequestException(
-          'Unable to find the conversation for session',
-        );
-      }
-
+    //Scenario 2 : Questionnaire Found but no conversation, start new conversation
+    if (!conversation && questionnaire) {
       const startQuestion = this.questionnaireService.getStartQuestion(questionnaire);
-
       conversation = await this.create(questionnaire.id, channel.id, participant.id, startQuestion.id!, questionnaire.questions);
-
       await this.sendQuestion(conversation, startQuestion);
       const progressedConversation = await this.conversationRepository.save(
         conversation.id!,
@@ -163,11 +170,29 @@ export class ConversationService {
           currentQuestionId: startQuestion.id,
         } as Partial<ConversationDomain>,
       );
-      return progressedConversation;
+      return {
+        responded: true,
+        reason: ProcessAnswerStatus.CONVERSATION_NOT_FOUND,
+        action: "REPLIED_NEW_CONVERSATION",
+        context: { questionnaireCode, channel, participant, message, ...context, conversationId: conversation.id }
+      };
     }
-
+    if (!conversation) {
+      return {
+        responded: true,
+        reason: ProcessAnswerStatus.CONVERSATION_NOT_FOUND_FOR_SOME_REASON,
+        action: "REPLIED_NEW_CONVERSATION",
+        context: { questionnaireCode, channel, participant, message, ...context }
+      };
+    }
     if (conversation.status === ConversationStatus.COMPLETED) {
-      throw new BadRequestException('Thank you, conversation is completed.');
+      this.sendMessage(conversation!, "Thank you.")
+      return {
+        responded: true,
+        reason: ProcessAnswerStatus.COMPLETED,
+        action: "REPLIED_NEW_CONVERSATION",
+        context: { questionnaireCode, channel, participant, message, ...context }
+      };
     }
 
     const currentQuestion = this.getCurrentQuestion(conversation);
@@ -190,7 +215,12 @@ export class ConversationService {
         processingResult.message,
         currentQuestion.id,
       );
-      return conversation;
+      return {
+        responded: true,
+        reason: processingResult.status,
+        action: "REPLIED_CONVERSATION",
+        context: { questionnaireCode, channel, participant, message, ...context }
+      };
     }
 
     if (processingResult.status === ProcessAnswerStatus.COMPLETED) {
@@ -206,7 +236,12 @@ export class ConversationService {
         questionnaire.conclusion || 'Thank you for completing the questionnaire',
         currentQuestion.id,
       );
-      return conversation;
+      return {
+        responded: true,
+        reason: processingResult.status,
+        action: "REPLIED_CONVERSATION",
+        context: { questionnaireCode, channel, participant, message, ...context }
+      };
     }
 
     const updatedConversation = await this.conversationRepository.save(
@@ -222,7 +257,12 @@ export class ConversationService {
       processingResult.nextQuestion
     );
 
-    return updatedConversation;
+     return {
+        responded: true,
+        reason: processingResult.status,
+        action: "REPLIED_CONVERSATION",
+        context: { questionnaireCode, channel, participant, message, ...context }
+      };
 
   }
 

@@ -27,11 +27,28 @@ export enum ProcessAnswerStatus {
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   NEXT_QUESTION = 'NEXT_QUESTION',
   COMPLETED = 'COMPLETED',
+  CONVERSATION_NOT_FOUND = "CONVERSATION_NOT_FOUND",
+  PARTICIPANT_NOT_FOUND='PARTICIPANT_NOT_FOUND',
+  QUESTIONNAIRE_NOT_FOUND = 'QUESTIONNAIRE_NOT_FOUND',
+  QUESTIONNAIRE_CODE_NOT_PROVIDED = 'QUESTIONNAIRE_CODE_NOT_PROVIDED',
+  CONVERSATION_NOT_FOUND_FOR_SOME_REASON = 'CONVERSATION_NOT_FOUND_FOR_SOME_REASON',
 }
 @Injectable()
 export class QuestionProcessorService {
   constructor(private readonly aiProcessor: AIProcessorService) {}
 
+  askQuestion(question: QuestionDomain) {
+      let message = question.text;
+
+      if (question.options?.length) {
+        const options = question.options
+          .map((option) => `${option.key}: ${option.label}`)
+          .join('\n');
+
+        message = `${message}\n${options}`;
+      }
+      return message;
+  }
   async processAnswer(
     conversation: ConversationDomain,
     question: QuestionDomain,
@@ -134,7 +151,7 @@ export class QuestionProcessorService {
       if (!selectedOption) {
         return {
           processedAnswer: message.trim(),
-          validationMessage: 'Please select a valid option.',
+          validationMessage: 'Please select a valid option.\n' + this.askQuestion(question),
         };
       }
 

@@ -14,7 +14,7 @@ export class ChannelSenderFactory {
   ) {}
 
   async getSender(channelId: string): Promise<ChannelSender> {
-    const channel = await this.channelService.findbyId(channelId);
+    const channel = await this.channelService.findById(channelId);
     if(!channel) throw new NotFoundException(`Channel is not found - ${channelId}`)
     switch (channel.type) {
       case ChannelType.SMS:

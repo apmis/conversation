@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { ParticipantRepository } from '../repositories/mongo/participant.repository';
 import { ParticipantDomain } from '../../../shared/domain';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class ParticipantService {
@@ -20,9 +21,15 @@ export class ParticipantService {
     }
 
 
-   async findByPhone(phone: string) : Promise<ParticipantDomain>{
+   async findByPhone(phone: string) : Promise<ParticipantDomain | null>{
       const participant = await this.participantRepo.findByPhone(phone);
-        if (!participant) throw new NotFoundException('Participant not found');
+      if(!participant) this.createParticipant({
+        phone,
+        firstName: 'unknown',
+        email: 'unknown',
+        lastName: 'unknown',
+        id: new Types.ObjectId().toString()
+      })
       return participant;
     }
     
