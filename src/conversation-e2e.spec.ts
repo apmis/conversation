@@ -1,7 +1,6 @@
 jest.setTimeout(1000000);
 process.env.MONGOMS_BINARY_VERSION = '6.0.6';
 process.env.MONGOMS_DOWNLOAD_DIR = './mongo-binaries';
-process.env.MONGOMS_IP = '127.0.0.1';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken, MongooseModule } from '@nestjs/mongoose';
@@ -28,7 +27,6 @@ import { WhatsappSender } from './channels/senders/whatsapp-sender';
 import { BadRequestException } from '@nestjs/common';
 import { toDomain } from './shared/converters';
 import { todo } from 'node:test';
-import net from 'node:net';
 
 type SentMessage = {
   phone: string;
@@ -41,23 +39,6 @@ type TestScenario = {
   includeRequiredError?: boolean;
   includeInvalidOptionError?: boolean;
 };
-
-const getFreeLocalPort = (): Promise<number> =>
-  new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.unref();
-    server.on('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() => {
-        if (!address || typeof address === 'string') {
-          reject(new Error('Failed to resolve local port'));
-          return;
-        }
-        resolve(address.port);
-      });
-    });
-  });
 
 describe('ConversationService Integration', () => {
   let mongoServer: MongoMemoryServer;
@@ -104,10 +85,8 @@ describe('ConversationService Integration', () => {
 
   beforeAll(async () => {
     console.log('[TRACE] Starting MongoMemoryServer...');
-    const port = await getFreeLocalPort();
     mongoServer = await MongoMemoryServer.create({
       binary: { version: '6.0.6' },
-      instance: { ip: '127.0.0.1', port },
     });
     const mongoUri = mongoServer.getUri();
     console.log('[TRACE] MongoMemoryServer running at', mongoUri);
@@ -201,7 +180,8 @@ it('runs 10 questionnaires (5 questions each) from simple to complex scenarios',
         console.log(`[TRACE] Processing inbound answer: "${answer.value}"`);
         await conversationService.processInboundMessageFromPhoneNumber(channel, participant.phone, answer.value, questionnaire.code, {messageId: ''});
 
-         expectedOutboundCount += 1; // always one outbound per inbound
+        expectedInboundCount += 1;
+        expectedOutboundCount += 1; // always one outbound per inbound
       }
       console.log(conversation)
       conversation = toDomain(await conversationModel.findById(new Types.ObjectId(conversation!.id)).lean());
