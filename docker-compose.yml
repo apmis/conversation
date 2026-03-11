@@ -1,29 +1,26 @@
+version: '3.8'
+
 services:
   mongodb:
     image: mongo:8.0
     container_name: conversation-engine-mongodb
     restart: unless-stopped
-
     command:
       - "--replSet"
       - "rs0"
       - "--bind_ip_all"
       - "--keyFile"
       - "/etc/mongo-keyfile"
-
     ports:
       - "27017:27017"
-
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin123
       MONGO_INITDB_DATABASE: conversation_engine_test
-
     volumes:
       - mongo_data:/data/db
       - mongo_config:/data/configdb
       - ./mongo-keyfile:/etc/mongo-keyfile:ro
-
     healthcheck:
       test: >
         mongosh --username admin --password admin123 --authenticationDatabase admin --eval
@@ -31,54 +28,46 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
     networks:
       - conversation-network
 
   mongo-init:
     image: mongo:8.0
     container_name: mongo-init-replica
-
     depends_on:
       mongodb:
         condition: service_healthy
-
     networks:
       - conversation-network
-
     entrypoint: >
       bash -c "
-      echo 'Initializing replica set...' &&
-      mongosh --host mongodb
-      --username admin
-      --password admin123
-      --authenticationDatabase admin
-      --eval '
+      until mongosh --host mongodb --username admin --password admin123 --authenticationDatabase admin --eval 'rs.status()' 2>/dev/null; do
+        echo 'Waiting for MongoDB...'; sleep 2;
+      done;
+      echo 'Initializing replica set...';
+      mongosh --host mongodb --username admin --password admin123 --authenticationDatabase admin --eval '
       rs.initiate({
         _id: \"rs0\",
         members: [{ _id: 0, host: \"mongodb:27017\" }]
-      })
-      ' || true
+      });
+      ' || true;
+      echo 'Replica set initialized.'
       "
 
   mongo-express:
     image: mongo-express:latest
     container_name: conversation-engine-mongo-express
     restart: unless-stopped
-
     ports:
       - "8081:8081"
-
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: admin
       ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
       ME_CONFIG_MONGODB_URL: mongodb://admin:admin123@mongodb:27017/?authSource=admin
       ME_CONFIG_BASICAUTH: false
-
     depends_on:
       mongodb:
         condition: service_healthy
-
     networks:
       - conversation-network
 

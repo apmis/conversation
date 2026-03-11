@@ -20,7 +20,7 @@ export class WhatsappProcessor implements ChannelProcessor {
   async processInbound(payload: WhatsAppWebhookDto) {
 
     const statuses = payload?.entry?.[0]?.changes?.[0]?.value?.statuses;
-
+    
     if(statuses) {
       const exchange = await this.exchangeService.updateExchangeFromWhatsappStatus(payload);
       return exchange;
@@ -34,6 +34,7 @@ export class WhatsappProcessor implements ChannelProcessor {
   
     const whatsappChannelId = this.configService.getOrThrow('CHANNEL_ID_WHATSAPP')
     const channel = await this.channelService.findById(whatsappChannelId)
+    console.log({channel})
     if (!channel) {
       throw new NotFoundException('Configured WhatsApp channel was not found');
     }

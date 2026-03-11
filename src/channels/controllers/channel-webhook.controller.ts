@@ -42,6 +42,7 @@ export class ChannelWebhookController {
   @Post('whatsapp')
   @ApiBody({ type: WhatsAppWebhookDto })
   async whatsapp(@Body() payload: WhatsAppWebhookDto) {
+    console.log({payload})
     return this.whatsappProcessor.processInbound(payload);
   }
 

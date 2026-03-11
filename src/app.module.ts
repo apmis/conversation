@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ConversationModule } from "./modules/conversation/conversation.module";
 import { ChannelsModule } from './channels/channels.module';
+import { MongooseCollectionPrefixPlugin } from "./modules/conversation/schemas/prefix.plugin";
 
 @Module({
   imports: [
@@ -10,13 +11,15 @@ import { ChannelsModule } from './channels/channels.module';
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        uri:
-          configService.get<string>('MONGODB_URI') ||
-          'mongodb://admin:admin123@localhost:27017/conversation_engine_test?authSource=admin',
-        dbName:
-          configService.get<string>('MONGODB_NAME') ||
-          'conversation_engine_test',
+        uri: configService.getOrThrow<string>('MONGODB_URI'),
+        dbName: configService.get<string>('MONGODB_NAME') || 'conversation_engine_test',
+        connectionFactory: (connection) => {
+          const prefix = configService.get<string>('DB_PREFIX') || 'dev_';
+          connection.plugin(MongooseCollectionPrefixPlugin, { prefix });
+          return connection;
+        },
       }),
+      
     }),
     ConversationModule,
     ChannelsModule,

@@ -27,6 +27,7 @@ import { WhatsappSender } from './channels/senders/whatsapp-sender';
 import { BadRequestException } from '@nestjs/common';
 import { toDomain } from './shared/converters';
 import { todo } from 'node:test';
+import { ChannelsModule } from './channels/channels.module';
 
 type SentMessage = {
   phone: string;
@@ -99,6 +100,7 @@ describe('ConversationService Integration', () => {
           dbName: 'conversation_service_integration_test',
         }),
         ConversationModule,
+        ChannelsModule
       ],
     })
       .overrideProvider(NigeriaBulkSmsSender)

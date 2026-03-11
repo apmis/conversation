@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Exchange, ExchangeSchema } from './schemas/exchange.schema';
 import { ExchangeService } from './services/exchange.service';
@@ -17,6 +18,7 @@ import { ConversationService } from '../modules/conversation/services/conversati
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     forwardRef(() => ConversationModule),
     MongooseModule.forFeature([
       { name: Exchange.name, schema: ExchangeSchema },
@@ -33,7 +35,6 @@ import { ConversationService } from '../modules/conversation/services/conversati
     ChannelProcessorFactory,
     WhatsappProcessor,
     SmsProcessor,
-    ConversationService,
   ],
   exports: [ExchangeService, ChannelService, ChannelSenderFactory],
 })

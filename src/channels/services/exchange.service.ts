@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -23,6 +23,7 @@ export class ExchangeService implements OnModuleInit {
   constructor(
     @InjectModel(Exchange.name)
     private readonly exchangeModel: Model<ExchangeDocument>,
+    @Inject(forwardRef(() => ConversationService))
     private readonly conversationService: ConversationService
   ) { }
 
@@ -31,9 +32,13 @@ export class ExchangeService implements OnModuleInit {
     const changeStream = this.exchangeModel.watch();
 
     changeStream.on('change', (change) => {
-      if (change.operationType === 'insert' && change.operationType. direction === ExchangeDirection.INBOUND) {
-        console.log('New Inquiry Received:', change.fullDocument);
 
+      if (change.operationType === 'insert' && change?.fullDocument?.direction === ExchangeDirection.INBOUND) {
+        console.log('New Inquiry Received:', change.fullDocument);
+        const {channelId,messageId, conversationId, questionnaireCode, sender: phone, message} = change.fullDocument as Exchange;
+        this.conversationService.processInboundMessageFromPhoneNumber({id: channelId! } as ChannelDomain, phone!, message, questionnaireCode!,  {messageId });
+      }else {
+        console.log('🔥 Unnprocessed Change event detected:', change);
       }
     });
   }

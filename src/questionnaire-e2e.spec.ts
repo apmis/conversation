@@ -33,6 +33,7 @@ import {
 } from './fixtures/test-data';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { AllExceptionsFilter } from './AllExceptionsFilter';
+import { ChannelsModule } from './channels/channels.module';
 
 describe('Questionnaire Integration Tests (E2E)', () => {
   let app: INestApplication;
@@ -54,6 +55,7 @@ describe('Questionnaire Integration Tests (E2E)', () => {
           dbName: 'conversation_engine_test',
         }),
         ConversationModule,
+        ChannelsModule
       ],
     }).compile();
 
