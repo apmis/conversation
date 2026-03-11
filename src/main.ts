@@ -1,13 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './AllExceptionsFilter';
 import { seedQuestionnaires } from './scripts/seed-questionnaires';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
     app.useGlobalFilters(new AllExceptionsFilter());
       app.setGlobalPrefix('api');
@@ -34,8 +33,7 @@ async function bootstrap() {
       console.error(`Startup questionnaire seeding skipped due to error: ${error?.message || error}`, error);
     }
   }
-  const host = '0.0.0.0'; // Bind to all interfaces
-  const port = configService.get<number>('PORT', 8080)
-  await app.listen(port, host);
+
+  await app.listen(configService.get<number>('PORT', 8080), '0.0.0.0');
 }
 bootstrap();
