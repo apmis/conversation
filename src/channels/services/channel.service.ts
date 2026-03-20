@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Channel, ChannelDocument } from "../schemas/channel.schema";
@@ -8,6 +8,8 @@ import { CreateChannelDto, UpdateChannelDto } from "../controllers/dto/channel.d
 
 @Injectable()
 export class ChannelService {
+  private readonly logger = new Logger(ChannelService.name);
+
   constructor(
     @InjectModel(Channel.name)
     private channelModel: Model<ChannelDocument>
@@ -31,6 +33,7 @@ export class ChannelService {
 
 
   async validateChannel(channelId: string): Promise<ChannelDomain> {
+    this.logger.debug(`[channel:validate] Resolving channel ${channelId}`);
     const channel = await this.findById(channelId);
     if (!channel) {
       throw new NotFoundException('Channel not found');
@@ -40,6 +43,7 @@ export class ChannelService {
   }
 
   async create(dto: CreateChannelDto): Promise<ChannelDomain> {
+    this.logger.log(`[channel:create] Persisting channel type=${dto.type} name=${dto.name}`);
     const created = await this.channelModel.create(dto);
     return toDomain(created);
   }
@@ -59,6 +63,7 @@ export class ChannelService {
   }
 
   async update(id: string, dto: UpdateChannelDto): Promise<ChannelDomain> {
+    this.logger.log(`[channel:update] Updating channel ${id}`);
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Channel not found');
     }
@@ -75,6 +80,7 @@ export class ChannelService {
   }
 
   async remove(id: string): Promise<{ message: string }> {
+    this.logger.warn(`[channel:remove] Removing channel ${id}`);
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Channel not found');
     }
@@ -89,6 +95,7 @@ export class ChannelService {
 
   async sendMessage(channelId: string, payload: any) {
     const channel = await this.validateChannel(channelId);
+    this.logger.log(`[channel:dispatch] channel=${channelId} type=${channel.type}`);
 
     switch (channel.type) {
       case ChannelType.WHATSAPP:

@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   Query,
 } from '@nestjs/common';
@@ -18,6 +19,8 @@ import { WhatsappProcessor } from '../processors/whatsapp-processor';
 
 @Controller('webhooks')
 export class ChannelWebhookController {
+  private readonly logger = new Logger(ChannelWebhookController.name);
+
   constructor(
     private readonly whatsappProcessor: WhatsappProcessor,
     private readonly configService: ConfigService,
@@ -25,6 +28,7 @@ export class ChannelWebhookController {
 
   @Get('whatsapp')
   verifyWhatsappWebhook(@Query() query: Record<string, string>) {
+    this.logger.debug('[webhook:verify] Incoming WhatsApp webhook verification request.');
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
@@ -35,9 +39,11 @@ export class ChannelWebhookController {
     }
 
     if (!expectedToken || token !== expectedToken) {
+      this.logger.warn('[webhook:verify] WhatsApp webhook token validation failed.');
       throw new ForbiddenException('Invalid WhatsApp webhook token');
     }
 
+    this.logger.log('[webhook:verify] WhatsApp webhook verified successfully.');
     return challenge;
   }
 
@@ -45,6 +51,9 @@ export class ChannelWebhookController {
   @HttpCode(HttpStatus.OK) 
   @ApiBody({ type: WhatsAppWebhookDto })
   async whatsapp(@Body() payload: WhatsAppWebhookDto) {
+    this.logger.log(
+      `[webhook:ingest] WhatsApp payload received :: entries=${payload.entry?.length || 0}`,
+    );
     return this.whatsappProcessor.processInbound(payload);
   }
 

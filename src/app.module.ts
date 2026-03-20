@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ConversationModule } from "./modules/conversation/conversation.module";
 import { ChannelsModule } from './channels/channels.module';
+import { QuestionnaireModule } from './modules/questionnaire/questionnaire.module';
+import { WorkflowEngineModule } from './modules/workflow/workflow-engine.module';
 
 @Module({
   imports: [
@@ -15,7 +17,8 @@ import { ChannelsModule } from './channels/channels.module';
         dbName: configService.get<string>('MONGODB_NAME') || 'conversation_engine_test',
 
         connectionFactory: (connection) => {
-          const prefix =  'conversation_' + configService.get<string>('DB_PREFIX') + '_' || 'dev_';
+          const dbPrefix = configService.get<string>('DB_PREFIX') || 'dev';
+          const prefix = `conversation_${dbPrefix}_`;
 
           const originalModel = connection.model.bind(connection);
 
@@ -29,8 +32,10 @@ import { ChannelsModule } from './channels/channels.module';
       }),
     }),
 
+    QuestionnaireModule,
     ConversationModule,
     ChannelsModule,
+    WorkflowEngineModule,
   ],
 })
 export class AppModule {}

@@ -45,13 +45,14 @@ export class WhatsappSender implements ChannelSender {
   async sendMessage(
     destination: ParticipantDomain,
     message: string,
+    containsLink: boolean,
     context: Record<string, any>,
   ): Promise<void> {
     const config = this.getConfig();
     const request = {
           messaging_product: 'whatsapp',
           to: destination.phone,
-          ...this.buildWhatsAppControl(message, +context.page)
+          ...this.buildWhatsAppControl(message, containsLink, +context.page)
         };
     try {
       const axiosResponse = await axios.post<WhatsAppSendMessageResponse>(
@@ -302,13 +303,13 @@ private parseControlString(input: string): ParsedControl {
   return { text, options };
 }
 
-private buildWhatsAppControl(input: string, page: number = 0) {
+private buildWhatsAppControl(input: string, containsLink: boolean = false, page: number = 0) {
   const parsed = this.parseControlString(input);
   if(isNaN(page))page = 0;
   if (!parsed.options.length) {
     return {
       type: "text",
-      text: { body: input },
+      text: { preview_url: containsLink, body: input },
     };
   }
 

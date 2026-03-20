@@ -1,12 +1,1 @@
-import { QuestionOption } from './option.domain';
-
-export type OptionListDomain = {
-  id?: string;
-  name: string;
-  options: QuestionOption[];
-  metadata?: Record<string, any>;
-  createdAt?: Date;
-  updatedAt?: Date;
-  tags: string[];
-
-};
+export type { OptionListDomain } from '../../modules/questionnaire/domain/option-list.domain';

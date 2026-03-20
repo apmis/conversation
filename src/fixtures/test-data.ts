@@ -3,9 +3,9 @@
  * Contains all mock data for e2e testing
  */
 
-import { CreateOptionDto, CreateOptionListDto } from '../modules/conversation/controllers/dto/option-list.dto';
-import { CreateQuestionnaireDto } from '../modules/conversation/controllers/dto/questionnaire.dto';
-import { CreateQuestionDto } from '../modules/conversation/controllers/dto/create-question.dto';
+import { CreateOptionDto, CreateOptionListDto } from '../modules/questionnaire/controllers/dto/option-list.dto';
+import { CreateQuestionnaireDto } from '../modules/questionnaire/controllers/dto/questionnaire.dto';
+import { CreateQuestionDto } from '../modules/questionnaire/controllers/dto/create-question.dto';
 
 import {
   QuestionType,
@@ -13,7 +13,7 @@ import {
   ProcessMode,
   ProcessingStrategy,
 } from '../shared/domain';
-import { Option } from '../modules/conversation/schemas/option.schema';
+import { Option } from '../modules/questionnaire/schemas/option.schema';
 
 /**
  * QUESTIONNAIRE

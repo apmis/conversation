@@ -1,4 +1,4 @@
-import { ProcessAnswerStatus } from "../../modules/conversation/services/question-processor.service";
+import { ProcessAnswerStatus } from "../../modules/questionnaire/processors/question-processor.service";
 import { ChannelDomain, ParticipantDomain } from ".";
 
 export interface ConversationResponse {

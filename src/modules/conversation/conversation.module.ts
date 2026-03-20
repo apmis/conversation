@@ -1,74 +1,38 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Question, QuestionSchema } from './schemas/question.schema';
-import { Option, OptionSchema } from './schemas/option.schema';
-import { OptionList, OptionListSchema } from './schemas/option-list.schema';
 import { ConversationService } from './services/conversation.service';
-import { QuestionRepository } from './repositories/question.repository';
-import { QuestionService } from './services/question.service';
-import { OptionListService } from './services/option-list.service';
-import { QuestionnaireService } from './services/questionnaire.service';
-import { TagService } from './services/tag.service';
-import { QuestionController } from './controllers/question.controller';
-import { OptionListController } from './controllers/option-list.controller';
-import { QuestionnaireController } from './controllers/questionnaire.controller';
-import { TagController } from './controllers/tag.controller';
 import { Conversation, ConversationSchema } from './schemas/conversation.schema';
-import { Questionnaire, QuestionnaireSchema } from './schemas/questionnaire.schema';
 import { Response, ResponseSchema } from './schemas/response.schema';
-import { Tag, TagSchema } from './schemas/tag.schema';
-import { CreateQuestionUseCase } from './services/use-cases/create-question.use-case';
-import { UpdateQuestionUseCase } from './services/use-cases/update-question.use-case';
-import { QuestionMongoRepository } from './repositories/mongo/question.mongorepo';
 import { ConversationRepository } from './repositories/mongo/conversation.repository';
 import { ParticipantRepository } from './repositories/mongo/participant.repository';
 import { ParticipantService } from './services/participant.service';
 import { ResponseService } from './services/ResponseService';
 import { Participant, ParticipantSchema } from './schemas/participant.schema';
-import { QuestionProcessorService } from './services/question-processor.service';
-import { AIProcessorService } from './services/ai-processor.service';
 import { ChannelsModule } from '../../channels/channels.module';
+import { QuestionnaireModule } from '../questionnaire/questionnaire.module';
+import { WorkflowEngineModule } from '../workflow/workflow-engine.module';
+import { WorkflowProcessorService } from './processors/workflow-processor.service';
 
 @Module({
   imports: [
     forwardRef(() => ChannelsModule),
+    QuestionnaireModule,
+    WorkflowEngineModule,
     MongooseModule.forFeature([
-      { name: Question.name, schema: QuestionSchema },
-      { name: Option.name, schema: OptionSchema },
-      { name: OptionList.name, schema: OptionListSchema },
       { name: Conversation.name, schema: ConversationSchema },
-      { name: Questionnaire.name, schema: QuestionnaireSchema },
       { name: Response.name, schema: ResponseSchema },
-      { name: Tag.name, schema: TagSchema },
       { name: Participant.name, schema: ParticipantSchema },
     ]),
   ],
-  controllers: [
-    QuestionController,
-    OptionListController,
-    QuestionnaireController,
-    TagController,
-  ],
+  controllers: [],
   providers: [
     ConversationService,
     ConversationRepository,
-    QuestionService,
-    OptionListService,
-    QuestionnaireService,
-    TagService,
     ResponseService,
     ParticipantService,
     ParticipantRepository,
-    QuestionProcessorService,
-    AIProcessorService,
-    CreateQuestionUseCase,
-    UpdateQuestionUseCase,
-    QuestionMongoRepository,
-    {
-      provide: QuestionRepository,
-      useClass: QuestionMongoRepository,
-    },
+    WorkflowProcessorService,
   ],
-  exports: [ConversationService, QuestionService, OptionListService, QuestionnaireService, TagService],
+  exports: [ConversationService, ParticipantService, ResponseService],
 })
 export class ConversationModule {}
