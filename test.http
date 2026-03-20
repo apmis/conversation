@@ -157,3 +157,12 @@ curl -X 'POST' \
   "recipient": "2348022224166",
   "message": "Hello"
 }'
+
+
+###Send image
+curl -v -X POST https://conversation-engine-5epg.onrender.com/api/channels/send-media \
+  -F "channelId=69aca4cd84a4eab2c5b98b3a" \
+  -F "recipient=2348022224166" \
+  -F "documentType=image" \
+  -F "fileName=Passport" \
+  -F "file=@/Users/john/Desktop/face.png"

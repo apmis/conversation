@@ -6,6 +6,7 @@ export type Conversation = {
      channelId: string;
      questionnaireId: string;
      participantId: string;
+     workflowInstanceId?: string;
      currentQuestionId?: string;
      questions?: QuestionDomain[];
      status: ConversationStatus;

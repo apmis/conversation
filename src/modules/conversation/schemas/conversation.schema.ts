@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { Channel } from './channel.schema';
-import { Questionnaire, QuestionnaireSchema } from './questionnaire.schema';
+import { Questionnaire } from '../../questionnaire/schemas/questionnaire.schema';
 import { Participant } from './participant.schema';
-import { Question, QuestionSchema } from './question.schema';
+import { Question, QuestionSchema } from '../../questionnaire/schemas/question.schema';
 import { ConversationState, ConversationStatus } from '../../../shared/domain';
+import { WorkflowInstance } from '../../workflow/entities/instance';
 
 @Schema({ timestamps: true })
 export class Conversation {
@@ -20,8 +21,12 @@ export class Conversation {
   @Prop({ type: Types.ObjectId, ref: Questionnaire.name, required: true })
   questionnaireId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: Channel.name, required: true })
-  currentQuestionId: Types.ObjectId;;
+  @Prop({ type: Types.ObjectId, ref: Question.name, required: true })
+  currentQuestionId: Types.ObjectId;
+
+
+  @Prop({ type: Types.ObjectId, ref: WorkflowInstance.name, required: false })
+  workflowInstanceId?: Types.ObjectId;
   
   @Prop({ type: String,
     required: true,

@@ -1,3 +1,4 @@
+import { ProcessingStrategy } from './enums';
 import type { Question } from './question.domain';
 
 export type Questionnaire = {
@@ -10,18 +11,22 @@ export type Questionnaire = {
 
   introduction?: string;
   conclusion?: string;
+
+  submissionUrl?: string;
+
   // Behavior
   isDynamic: boolean; // true = AI driven, false = static flow
   version: number;
 
   // Flow control
   startQuestionId?: string;
+  workflowId?: string;
   endPhrase: string;
   allowBackNavigation: boolean;
   allowMultipleSessions: boolean;
 
   // Execution mode
-  processingStrategy: 'STATIC' | 'AI_ASSISTED' | 'FULL_AI';
+  processingStrategy: ProcessingStrategy;
 
   // Optional question tree (if preloaded)
   questions?: Question[];

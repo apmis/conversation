@@ -55,10 +55,20 @@ export class WhatsappProcessor implements ChannelProcessor {
         const contextExchange = await this.exchangeService.findExchangeByMessageId(message?.context?.id)
       if (nativigationRequest) {
         const [, action, page] = nativigationRequest;
-        await this.whatsappSender.sendMessage({ phone: contextExchange?.recipient } as any, contextExchange!.message, { page, contextId: message.context.id })
+        await this.whatsappSender.sendMessage(
+          { phone: contextExchange?.recipient } as any,
+          contextExchange!.message,
+          false,
+          { page, contextId: message.context.id },
+        )
         return { message: 'returned new page' }
       }else if (contextExchange && !(await this.exchangeService.isMostRecentOutboundExchange(contextExchange))) {
-        await this.whatsappSender.sendMessage({ phone: contextExchange?.recipient } as any, "Please proceed with recent...", {contextId:message.context.id  })
+        await this.whatsappSender.sendMessage(
+          { phone: contextExchange?.recipient } as any,
+          "Please proceed with recent...",
+          false,
+          {contextId:message.context.id  },
+        )
         return { message: 'returned proceed with most recent' }
       }
 

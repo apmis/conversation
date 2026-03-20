@@ -19,7 +19,8 @@ export class NigeriaBulkSmsSender implements ChannelSender {
   async sendMessage(
     participant: ParticipantDomain,
     message: string,
-    context?: Record<string, any>,
+    containsLink: boolean,
+    context: Record<string, any> = {},
   ): Promise<void> {
     try {
       const username = this.configService.get<string>('BULKSMS_USERNAME') || '';

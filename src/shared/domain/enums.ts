@@ -1,5 +1,6 @@
 export enum QuestionType {
   TEXT = 'text',
+  TEXT_WITH_LINK = 'TEXT_WITH_LINK',
   NUMBER = 'number',
   DATE = 'date',
   SINGLE_CHOICE = 'single_choice',
@@ -23,6 +24,7 @@ export enum ProcessMode {
   NONE = 'none',
   OPTION_PROCESSED = 'option_processed',
   AI_PROCESSED = 'ai_processed',
+  QUESTION_TYPE = 'question_type',
   RULE_ENGINE = 'rule_engine',
 }
 

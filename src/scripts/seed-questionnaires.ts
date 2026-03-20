@@ -1,151 +1,188 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { INestApplicationContext } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Questionnaire } from '../modules/conversation/schemas/questionnaire.schema';
-import { Question } from '../modules/conversation/schemas/question.schema';
-import { OptionList } from '../modules/conversation/schemas/option-list.schema';
+import { Question } from '../modules/questionnaire/schemas/question.schema';
+import { Questionnaire } from '../modules/questionnaire/schemas/questionnaire.schema';
+import {
+  SeedQuestionnaire,
+  loadQuestionnaireSeeds,
+} from './questionnaire-seed-loader';
 
-type SeedOption = {
-  key: string;
-  value: string;
-  label: string;
-  index: number;
-  jumpToQuestionId?: string;
-  backToQuestionId?: string;
-  childQuestionnaireId?: string;
-  metadata?: Record<string, any>;
+type SeedResult = {
+  created: number;
+  updated: number;
+  skipped: number;
 };
 
-type SeedQuestion = {
-  text: string;
-  questionType: string;
-  renderMode: string;
-  processMode: string;
-  index: number;
-  isRequired?: boolean;
-  isActive?: boolean;
-  tags?: string[];
-  options?: SeedOption[];
-};
-
-type SeedQuestionnaire = {
-  isDynamic: boolean;
-  version: number;
-  allowBackNavigation: boolean;
-  allowMultipleSessions: boolean;
-  processingStrategy: string;
-  isActive: boolean;
-  name: string;
-  code: string;
-  description?: string;
-  introduction?: string;
-  conclusion?: string;
-  tags?: string[];
-  metadata?: Record<string, any>;
-  questions?: SeedQuestion[];
-};
+function buildAttribute(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
 
 export async function seedQuestionnaires(
   app: INestApplicationContext,
-): Promise<{ created: number; skipped: number }> {
+): Promise<SeedResult> {
+  console.log('Loading questionnaire seed source...');
   const questionnaireModel = app.get<Model<Questionnaire>>(
     getModelToken(Questionnaire.name),
   );
-  const questionModel = app.get<Model<Question>>(
-    getModelToken(Question.name),
-  );
-  const optionListModel = app.get<Model<OptionList>>(
-    getModelToken(OptionList.name),
-  );
+  const questionModel = app.get<Model<Question>>(getModelToken(Question.name));
 
-  const seedPath = join(process.cwd(), 'seedquestionnaire.ai');
-  let raw: string;
-  try {
-    raw = await readFile(seedPath, 'utf-8');
-  } catch (error: any) {
-    if (error?.code === 'ENOENT') {
-      return { created: 0, skipped: 0 };
-    }
-    throw error;
+  const data = await loadQuestionnaireSeeds(process.cwd());
+  console.log(`Loaded ${data.length} questionnaire definitions from seed source.`);
+  if (!data.length) {
+    return { created: 0, updated: 0, skipped: 0 };
   }
 
-  const data = JSON.parse(raw) as SeedQuestionnaire[];
+  const questionnaireCodes = data.map((item) => item.code);
+  const existingQuestionnaires = await questionnaireModel
+    .find({ code: { $in: questionnaireCodes } }, { code: 1 })
+    .lean();
 
-  let created = 0;
-  let skipped = 0;
+  const existingByCode = new Map<string, { id: string }>(
+    existingQuestionnaires.map((item: any) => [
+      item.code,
+      { id: item._id.toString() },
+    ]),
+  );
+
+  const questionnaireIdByReference = new Map<string, string>();
+  const itemsToSync: Array<
+    SeedQuestionnaire & {
+      generatedId: Types.ObjectId;
+      exists: boolean;
+    }
+  > = [];
 
   for (const item of data) {
-    const existing = await questionnaireModel.findOne({ code: item.code }).lean();
-    if (existing) {
-      skipped += 1;
-      continue;
-    }
-
-    const { questions = [], ...questionnairePayload } = item;
-
-    const questionnaire = await questionnaireModel.create({
-      ...questionnairePayload,
-      questions: [],
-    });
-
-    const questionnaireId = questionnaire._id as Types.ObjectId;
-    const createdQuestions: any[] = [];
-
-    for (const question of questions) {
-      const useOptionList = Array.isArray(question.options) && question.options.length > 0 && question.index % 2 === 0;
-
-      let optionListId: Types.ObjectId | undefined;
-      let embeddedOptions = question.options || [];
-
-      if (useOptionList) {
-        const optionListName = `${item.code}-Q${question.index}`;
-        let optionList = await optionListModel.findOne({ name: optionListName });
-
-        if (!optionList) {
-          optionList = await optionListModel.create({
-            name: optionListName,
-            options: question.options,
-            tags: [item.code, 'seeded'],
-            metadata: {
-              questionnaireCode: item.code,
-              questionIndex: question.index,
-            },
-          });
-        }
-
-        optionListId = optionList._id as Types.ObjectId;
-        embeddedOptions = [];
-      }
-
-      const createdQuestion = await questionModel.create({
-        _id: new Types.ObjectId(),
-        questionnaireId,
-        optionListId,
-        text: question.text,
-        questionType: question.questionType,
-        renderMode: question.renderMode,
-        processMode: question.processMode,
-        index: question.index,
-        isRequired: question.isRequired ?? false,
-        isActive: question.isActive ?? true,
-        tags: question.tags || [],
-        options: embeddedOptions,
-      });
-
-      createdQuestions.push(createdQuestion.toObject());
-    }
-
-    if (createdQuestions.length > 0) {
-      await questionnaireModel.updateOne(
-        { _id: questionnaireId },
-        { $set: { questions: createdQuestions } },
-      );
-    }
-
-    created += 1;
+    const existing = existingByCode.get(item.code);
+    const generatedId = existing ? new Types.ObjectId(existing.id) : new Types.ObjectId();
+    questionnaireIdByReference.set(item.referenceCode, generatedId.toString());
+    questionnaireIdByReference.set(item.code, generatedId.toString());
+    itemsToSync.push({ ...item, generatedId, exists: Boolean(existing) });
   }
 
-  return { created, skipped };
+  let created = 0;
+  let updated = 0;
+
+  console.log(
+    `Syncing ${itemsToSync.length} questionnaires to MongoDB...`,
+  );
+
+  for (const item of itemsToSync) {
+    const sortedQuestions = [...(item.questions || [])].sort(
+      (left, right) => left.index - right.index,
+    );
+
+    const questionIdByReference = new Map<string, Types.ObjectId>();
+    for (const question of sortedQuestions) {
+      questionIdByReference.set(question.referenceCode, new Types.ObjectId());
+    }
+
+    const embeddedQuestions = sortedQuestions.map((question) => ({
+      _id: questionIdByReference.get(question.referenceCode)!,
+      questionnaireId: item.generatedId,
+      attribute: question.attribute || buildAttribute(question.text),
+      text: question.text,
+      description: question.description,
+      hasLink: question.hasLink ?? false,
+      index: question.index,
+      tags: question.tags || [],
+      questionType: question.questionType,
+      renderMode: question.renderMode,
+      processMode: question.processMode,
+      isRequired: question.isRequired ?? false,
+      isActive: question.isActive ?? true,
+      previousQuestionId: question.previousQuestionReferenceCode
+        ? questionIdByReference
+            .get(question.previousQuestionReferenceCode)
+            ?.toString()
+        : undefined,
+      nextQuestionId: question.nextQuestionReferenceCode
+        ? questionIdByReference.get(question.nextQuestionReferenceCode)?.toString()
+        : undefined,
+      childQuestionnaireId: question.childQuestionnaireReferenceCode
+        ? questionnaireIdByReference.get(question.childQuestionnaireReferenceCode)
+        : undefined,
+      options: [...(question.options || [])]
+        .sort((left, right) => left.index - right.index)
+        .map((option) => ({
+          _id: new Types.ObjectId(),
+          key: option.key,
+          value: option.value,
+          label: option.label,
+          index: option.index,
+          jumpToQuestionId: option.jumpToQuestionReferenceCode
+            ? questionIdByReference
+                .get(option.jumpToQuestionReferenceCode)
+                ?.toString()
+            : undefined,
+          backToQuestionId: option.backToQuestionReferenceCode
+            ? questionIdByReference
+                .get(option.backToQuestionReferenceCode)
+                ?.toString()
+            : undefined,
+          childQuestionnaireId: option.childQuestionnaireReferenceCode
+            ? questionnaireIdByReference.get(option.childQuestionnaireReferenceCode)
+            : undefined,
+          metadata: option.metadata,
+        })),
+      aiConfig: question.aiConfig,
+      validationRules: question.validationRules || [],
+      metadata: question.metadata,
+    }));
+
+    const startQuestionId = item.startQuestionReferenceCode
+      ? questionIdByReference.get(item.startQuestionReferenceCode)?.toString()
+      : embeddedQuestions[0]?._id?.toString();
+
+    const questionnairePayload = {
+      _id: item.generatedId,
+      name: item.name,
+      introduction: item.introduction,
+      conclusion: item.conclusion,
+      code: item.code,
+      description: item.description,
+      submissionUrl: item.submissionUrl,
+      isDynamic: item.isDynamic,
+      version: item.version,
+      startQuestionId,
+      workflowId: item.workflowId,
+      endPhrase: item.endPhrase || 'STOP',
+      allowBackNavigation: item.allowBackNavigation,
+      allowMultipleSessions: item.allowMultipleSessions,
+      processingStrategy: item.processingStrategy,
+      questions: embeddedQuestions,
+      tags: item.tags || [],
+      metadata: item.metadata,
+      isActive: item.isActive,
+    };
+
+    await questionnaireModel.replaceOne(
+      { _id: item.generatedId },
+      questionnairePayload,
+      { upsert: true },
+    );
+
+    await questionModel.deleteMany({ questionnaireId: item.generatedId });
+
+    if (embeddedQuestions.length > 0) {
+      await questionModel.insertMany(embeddedQuestions, { ordered: true });
+    }
+
+    if (item.exists) {
+      updated += 1;
+    } else {
+      created += 1;
+    }
+  }
+
+  console.log(
+    `Questionnaire sync finished. created=${created} updated=${updated}`,
+  );
+
+  return { created, updated, skipped: 0 };
 }

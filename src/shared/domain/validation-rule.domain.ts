@@ -1,5 +1,1 @@
-export type ValidationRule = {
-  type: 'required' | 'min' | 'max' | 'regex' | 'custom';
-  value?: any;
-  message?: string;
-};
+export type { ValidationRule } from '../../modules/questionnaire/domain/validation-rule.domain';

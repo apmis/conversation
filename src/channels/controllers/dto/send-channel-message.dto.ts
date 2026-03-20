@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class SendChannelMessageDto {
   @ApiProperty()
@@ -11,6 +11,12 @@ export class SendChannelMessageDto {
   @IsString()
   @IsNotEmpty()
   recipient: string;
+
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  previewLink: boolean;
 
   @ApiProperty()
   @IsString()
@@ -28,4 +34,10 @@ export class SendMessageByChannelPathDto {
   @IsString()
   @IsNotEmpty()
   message: string;
+
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsOptional()
+  previewLink: boolean;
 }

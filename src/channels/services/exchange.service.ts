@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, OnModuleInit, forwardRef } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, OnModuleInit, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -10,8 +10,6 @@ import {
 import { WhatsAppWebhookDto } from '../controllers/dto/whatsapp.dto';
 import { ConversationService } from '../../modules/conversation/services/conversation.service';
 import { ChannelDomain } from '../../shared/domain';
-import { stringify } from 'querystring';
-
 type CreateExchangePayload = Partial<Exchange> & {
   channelType: string;
   direction: ExchangeDirection;
@@ -21,6 +19,8 @@ type CreateExchangePayload = Partial<Exchange> & {
 
 @Injectable()
 export class ExchangeService implements OnModuleInit {
+  private readonly logger = new Logger(ExchangeService.name);
+
   constructor(
     @InjectModel(Exchange.name)
     private readonly exchangeModel: Model<ExchangeDocument>,
@@ -29,7 +29,7 @@ export class ExchangeService implements OnModuleInit {
   ) { }
 
   onModuleInit() {
-    // Start watching the collection for changes
+    this.logger.log('[exchange:watch] Starting Mongo change stream for exchanges.');
     const changeStream = this.exchangeModel.watch();
 
     changeStream.on('change', ({ operationType, fullDocument, updateDescription }) => {
@@ -42,6 +42,9 @@ export class ExchangeService implements OnModuleInit {
         const party = sender ? sender : recipient;
         info = `message: (${message.substring(0, 100)}...) ${direction === ExchangeDirection.INBOUND ? 'received from ' : 'sent to '} ${party} `;
         if (direction === ExchangeDirection.INBOUND) {
+          this.logger.debug(
+            `[exchange:ingest] Forwarding inbound exchange messageId=${messageId} questionnaire=${questionnaireCode || 'n/a'}`,
+          );
           this.conversationService.processInboundMessageFromPhoneNumber({ id: channelId! } as ChannelDomain, party!, message, questionnaireCode!, { messageId });
         }
       } else if (operationType === 'update') {
@@ -52,7 +55,9 @@ export class ExchangeService implements OnModuleInit {
         info = ''
       }
 
-      console.log(`${status || ''} ${direction || ''} Exchange(${id}) ${operationType}ed   ${info ? info.replace(/(\r\n|\n|\r)/g, " ") : ''}`)
+      this.logger.log(
+        `[exchange:${operationType}] ${status || 'UNKNOWN'} ${direction || 'n/a'} Exchange(${id}) :: ${info ? info.replace(/(\r\n|\n|\r)/g, ' ') : ''}`,
+      );
     });
   }
 
@@ -72,16 +77,23 @@ export class ExchangeService implements OnModuleInit {
     rawPayload?: Record<string, any>;
     status?: ExchangeStatus;
   }): Promise<Exchange> {
-     const received = await this.exchangeModel.findOne({ messageId: payload.messageId })
+    const received = await this.exchangeModel.findOne({ messageId: payload.messageId })
     const answered = await this.exchangeModel.findOne({ messageId: payload.metadata?.contextId })
     if (received) {
-      console.log(`Existing exchange ${received ? 'received' : ''}) discarded ... messageId${payload.messageId})`);
+      this.logger.warn(
+        `[exchange:dedupe] Outbound exchange already exists for messageId=${payload.messageId}`,
+      );
       return received;
     }
     if (answered){
-      console.log(`Existing exchange ${answered ? 'answered' : ''}) discarded ... contextId${payload.metadata?.contextId})`);
+      this.logger.warn(
+        `[exchange:dedupe] Outbound exchange matched existing contextId=${payload.metadata?.contextId}`,
+      );
       return answered;
     }
+    this.logger.debug(
+      `[exchange:outbound] Logging outbound messageId=${payload.messageId} recipient=${payload.recipient}`,
+    );
     return this.create({
       _id: new Types.ObjectId(),
       channelId: payload.channelId,
@@ -113,12 +125,19 @@ export class ExchangeService implements OnModuleInit {
     const received = await this.exchangeModel.findOne({ messageId: payload.messageId })
     const answered = await this.exchangeModel.findOne({ messageId: payload.metadata?.contextId })
     if (received) {
-      console.log(`Existing exchange ${received ? 'received' : ''}) discarded, messageId${payload.messageId})`);
+      this.logger.warn(
+        `[exchange:dedupe] Inbound exchange already exists for messageId=${payload.messageId}`,
+      );
       return received;
     }
     if (answered){
-    console.log(`Existing exchange ${answered ? 'replied context' : ''}), contextId${payload.metadata?.contextId})`);
+      this.logger.warn(
+        `[exchange:dedupe] Inbound exchange matched existing contextId=${payload.metadata?.contextId}`,
+      );
     }
+    this.logger.debug(
+      `[exchange:inbound] Logging inbound messageId=${payload.messageId} sender=${payload.sender}`,
+    );
     const exchange = await this.create({
       _id: new Types.ObjectId(),
       channelId: payload.channelId,
@@ -198,7 +217,10 @@ export class ExchangeService implements OnModuleInit {
     const {
       channelId, recipient, message, questionnaireCode, messageId
     } = exchange;
-    const response = await this.conversationService.processInboundMessageFromPhoneNumber(
+    this.logger.log(
+      `[exchange:process] Routing exchange messageId=${messageId} questionnaire=${questionnaireCode || 'n/a'}`,
+    );
+    await this.conversationService.processInboundMessageFromPhoneNumber(
       { id: channelId! } as ChannelDomain,
       recipient!,
       message,

@@ -3,8 +3,8 @@ import { Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Response {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Participant', required: true })
+  participantId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Question', required: true })
   questionId: Types.ObjectId;
@@ -18,14 +18,20 @@ export class Response {
   @Prop({ type: String }) // text answer
   textAnswer?: string;
 
+  @Prop({ type: Boolean })
+  valid: boolean
+
   @Prop({ type: String }) // text answer
   direction?: string;
 
   @Prop({ type: String })
   message: string;
 
+  @Prop({ type: String })
+  attribute: string;
+
   @Prop({ type: Object, default: {} })
-  aiMetadata?: Record<string, any>; // AI confidence, embeddings, etc.
+  metadata?: Record<string, any>; // AI confidence, embeddings, etc.
 
   @Prop({ type: Date }) 
   timestamp: Date;
