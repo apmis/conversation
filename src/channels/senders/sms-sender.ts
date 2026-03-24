@@ -5,6 +5,7 @@ import { ChannelSender } from './channel-sender';
 import { ParticipantDomain } from '../../shared/domain';
 import { ExchangeService } from '../services/exchange.service';
 import { ExchangeStatus } from '../schemas/exchange.schema';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class NigeriaBulkSmsSender implements ChannelSender {
@@ -26,7 +27,7 @@ export class NigeriaBulkSmsSender implements ChannelSender {
     try {
       const username = this.configService.get<string>('BULKSMS_USERNAME') || '';
       const password = this.configService.get<string>('BULKSMS_PASSWORD') || '';
-      const senderName = this.configService.get<string>('BULKSMS_SENDER') || 'App';
+      const sender = this.configService.get<string>('BULKSMS_SENDER') || 'App';
 
       if (!username || !password) {
         throw new Error('BulkSMS credentials are not configured');
@@ -35,7 +36,7 @@ export class NigeriaBulkSmsSender implements ChannelSender {
       const params = new URLSearchParams({
         username,
         password,
-        sender: senderName,
+        sender,
         message,
         mobiles: participant.phone!,
       });
@@ -43,7 +44,7 @@ export class NigeriaBulkSmsSender implements ChannelSender {
       const url = `${this.baseUrl}?${params.toString()}`;
 
       const res = await axios.get(url);
-
+      console.log({res})
       if (!res.data || res.data.status !== 'OK') {
         throw new Error('SMS sending failed');
       }
@@ -53,7 +54,7 @@ export class NigeriaBulkSmsSender implements ChannelSender {
         channelType: 'SMS',
         recipient: participant.phone!,
         message,
-        messageId: '',
+        messageId: new Types.ObjectId().toString(),
         conversationId: context?.conversationId,
         questionnaireCode: context?.questionnaireCode,
         metadata: context,
@@ -68,7 +69,7 @@ export class NigeriaBulkSmsSender implements ChannelSender {
         channelType: 'SMS',
         recipient: participant.phone!,
         message,
-        messageId: '',
+        messageId: new Types.ObjectId().toString(),
         conversationId: context?.conversationId,
         questionnaireCode: context?.questionnaireCode,
         metadata: context,
@@ -78,7 +79,7 @@ export class NigeriaBulkSmsSender implements ChannelSender {
         },
         status: ExchangeStatus.FAILED,
       });
-
+      console.log(err)
       throw new HttpException(
         `BulkSMS error: ${err.message}`,
         HttpStatus.BAD_GATEWAY,
