@@ -61,7 +61,6 @@ export class NigeriaBulkSmsSender implements ChannelSender {
       });
 
       const url = `${this.baseUrl}?${params.toString()}`;
-
       const res = await axios.get(url);
       if (res.data && res.data.status !== 200) {
         throw new Error(JSON.stringify(res.data));

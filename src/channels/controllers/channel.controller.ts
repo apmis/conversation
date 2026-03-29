@@ -66,7 +66,7 @@ export class ChannelController {
   @Post('send-message')
   async sendMessage(@Body() dto: SendChannelMessageDto) {
     this.logger.log(
-      `[channel:send-message] channel=${dto.channelId} recipient=${dto.email} {dto.phone}`,
+      `[channel:send-message] channel=${dto.channelId} recipient=${dto.email} ${dto.phone}`,
     );
     const sender = await this.senderFactory.getSender(dto.channelId);
     await sender.sendMessage(

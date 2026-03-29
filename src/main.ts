@@ -8,6 +8,7 @@ import { seedQuestionnaires } from './scripts/seed-questionnaires';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { seedWorkflows } from './scripts/seed-workflows';
+import { json } from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -15,6 +16,8 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   app.useGlobalFilters(new AllExceptionsFilter());
   app.setGlobalPrefix('api');
+  app.use(json({ limit: '50mb' }));
+
 
   logger.log('[boot:init] Conversation Engine is wiring up application modules.');
 
